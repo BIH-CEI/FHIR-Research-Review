@@ -1,20 +1,13 @@
 ---
-title: "Revision: Results - FHIR Review"
-author: "Lehne, Vorisek"
+title: "Figures"
+author: "Vorisek_CN"
 date: "20 4 2022"
-output:
-  html_document: default
-  word_document: default
-  pdf_document: default
-editor_options:
-  chunk_output_type: console
+output: html_document
 ---
-
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
 
 First, load relevant packages for the network analysis:
 ```{r message = FALSE}
@@ -298,7 +291,47 @@ plot_country <- ggplot(countries) +
 plot_country
 
 ```
+Map of countries:
+maps packacge required
+```{r}
+library("maps")
+library("mapproj")
+```
 
+```{r}
+# geographical map
+world <- map_data('world')
+world_countries <- as.data.frame(unique(world$regi0on))
+names(world_countries) <- "Country"
+
+# join map with country data
+countries_map <- countries %>%
+        right_join(world_countries, by = "Country") %>% 
+        arrange(desc(N)) %>% 
+        mutate(category = case_when(
+          N == 1 ~ "1", 
+          N >= 2 & N <= 10 ~ "2 - 10", 
+          N >= 11 & N <= 23 ~ "11 - 23",
+          is.na(N) ~ "0")) %>% 
+        mutate(category=factor(category, levels = rev(c("0", "1", "2 - 10", "11 - 23"))))
+
+# plot map
+plot_map <- ggplot() + geom_map(data = world, map = world,
+                 aes(x = long, y = lat, group = group, map_id=region),
+                 fill = "grey95", colour="grey70", size=0.3) + 
+        geom_map(data = countries_map, map=world,
+                 aes(fill=category, map_id=Country),
+                 colour="grey50", size=0.3) +
+        coord_map("rectangular", lat0=0, xlim=c(-180,180), ylim=c(-60, 90)) +
+        scale_fill_manual(values=rev(c("grey90", "#668dcc", "#335a99", "#1b3051"))) +
+        scale_y_continuous(breaks=c()) +
+        scale_x_continuous(breaks=c()) +
+        labs(fill="Number of\npublications", title="", x="", y="") +
+        theme_minimal()
+
+plot_map
+
+```
 
 ### Journals
 
@@ -548,3 +581,11 @@ ggsave("Figure5B.png", plot_category)
 ggsave("Figure5C.png", plot_clinical)
 ggsave("Figure5D.png", plot_standards)
 ```
+
+
+
+
+
+
+
+

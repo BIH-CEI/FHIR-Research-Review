@@ -1,0 +1,157 @@
+---
+title: "testing"
+author: "Vorisek_CN"
+date: "20 4 2022"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+First, load relevant packages for the network analysis:
+```{r message = FALSE}
+library(tidyverse)
+library(igraph)
+library(ggraph)
+library(visNetwork)
+library(readxl)
+```
+
+# Analysis of Excel file
+
+## Data import and cleaning
+
+Import Excel file with included studies ("IncludedStudies2.xlsx"):
+
+```{r message = FALSE}
+excel_data <- read_excel("IncludedStudies2.xlsx")
+```
+
+Clean data (keep only variables relevant for analysis, rename variables, reformat, ...):
+
+```{r}
+excel_data_clean <- excel_data %>% 
+  select(Author = `Author (First)`,
+         Title,
+         Year,
+         Country = `Country (according to 1st author affiliation)`,
+         Item_mapped_keyword = `Item mapped_keyword`,
+         Goal_keyword,
+         Other_standards_keyword = `Other standards_keyword`,
+         Other_software_keyword = `Other Software_keyword`,
+         FHIR_resource_used = `FHIR Resource used`,
+         FHIR_extension_used = `FHIR extension used`,
+         FHIR_version = `FHIR version`,
+         Patients,
+         Variables,
+         Variables_count,
+         Research_category = `Research Category`,
+         Medical_area = `Medical Area`,
+         Journal,
+         Impact_factor = `Impact Factor Research)`,
+         Research_area = `Research Area`,
+         Clinical_trials = `Clinical Trials`,
+         generic,
+         SNOMED_CT = `Other standards - SNOMED CT`,
+         LOINC = `Other standards - LOINC`,
+         ICD_10 = `Other standards - ICD 10`,
+         OMOP = `Other standards - OMOP`,
+         Other = `Other standards - Other`,
+         None = `Other standards - None (nicht angegeben oder nicht verwendet)`) %>% 
+  mutate(Journal = str_trim(Journal)) %>% 
+  mutate(Journal = ifelse(Journal %in%  c("Studies in Health technology and informatics", "Studies in Health Technology and Informatics"),
+                          "Studies in health technology and informatics", Journal)) %>% 
+  mutate(Journal = ifelse(Journal == "JMIR medical informatics",
+                          "JMIR Medical Informatics", Journal)) %>%
+  mutate(Impact_factor = ifelse(Impact_factor %in% c("None", "-"), NA, Impact_factor)) %>% 
+  mutate(Impact_factor = str_replace(Impact_factor, ",", ".")) %>% 
+  mutate(Impact_factor = round(as.numeric(Impact_factor), 2)) %>% 
+  mutate(Country = ifelse(Country == "USA / Switzerland", "USA", Country)) %>% 
+  mutate(Research_area = ifelse(Research_area == "Clinical trials",
+                               "Clinical Trials", Research_area))
+```
+
+
+### Goals
+
+This section analyzes the most common keywords describing the goals of the articles.
+
+
+Load tidytext package and get word frequencies of all words in Goal_keyword variable:
+```{r}
+library(tidytext)
+
+# define some stop words to be excluded
+stop_words <- c("of", "and", "for", "from", "a", "an", "between",
+                "across", "on", "the", "to", "in", "into", "with",
+                "as", "or", "other", "such", "via")
+
+goal_keywords <- excel_data_clean %>% 
+  select(Goal_keyword) %>% 
+  unnest_tokens(word, Goal_keyword, to_lower = TRUE) %>% 
+  filter(!(word %in% stop_words)) %>% 
+  group_by(word) %>% 
+  summarize(freq = n()) %>% 
+  arrange(desc(freq))
+
+```
+
+The wordcloud shows the most common words mentioned as keywords:
+```{r}
+library(wordcloud)
+```
+
+```{r}
+wordcloud(words = goal_keywords$word, freq = goal_keywords$freq, min.freq = 1,                      max.words=150, random.order=FALSE, rot.per=0.10, 
+             colors=c("#335a99", "#1b3051"))
+
+```
+
+Note that there are still some typos shown in the wordcloud. (Correct all typos in the final Excel file before analysis.)
+
+
+
+
+Map of countries:
+maps packacge required
+```{r}
+library("maps")
+library("mapproj")
+```
+
+```{r}
+# geographical map
+world <- map_data('world')
+world_countries <- as.data.frame(unique(world$regi0on))
+names(world_countries) <- "Country"
+
+# join map with country data
+countries_map <- countries %>%
+        right_join(world_countries, by = "Country") %>% 
+        arrange(desc(N)) %>% 
+        mutate(category = case_when(
+          N == 1 ~ "1", 
+          N >= 2 & N <= 10 ~ "2 - 10", 
+          N >= 11 & N <= 23 ~ "11 - 23",
+          is.na(N) ~ "0")) %>% 
+        mutate(category=factor(category, levels = rev(c("0", "1", "2 - 10", "11 - 23"))))
+
+# plot map
+plot_map <- ggplot() + geom_map(data = world, map = world,
+                 aes(x = long, y = lat, group = group, map_id=region),
+                 fill = "grey95", colour="grey70", size=0.3) + 
+        geom_map(data = countries_map, map=world,
+                 aes(fill=category, map_id=Country),
+                 colour="grey50", size=0.3) +
+        coord_map("rectangular", lat0=0, xlim=c(-180,180), ylim=c(-60, 90)) +
+        scale_fill_manual(values=rev(c("grey90", "#668dcc", "#335a99", "#1b3051"))) +
+        scale_y_continuous(breaks=c()) +
+        scale_x_continuous(breaks=c()) +
+        labs(fill="Number of\npublications", title="", x="", y="") +
+        theme_minimal()
+
+plot_map
+
+```
