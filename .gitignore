@@ -2,3 +2,8 @@
 .Rhistory
 .RData
 .Ruserdata
+*.png
+.testing.Rmd
+.Figures.Rmd
+.Figures.html
+.Figures_files
