@@ -4,6 +4,7 @@
 .Ruserdata
 *.png
 .testing.Rmd
+.testing.html
 .Figures.Rmd
 .Figures.html
 .Figures_files

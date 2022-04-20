@@ -3,8 +3,8 @@ title: "Revision: Results - FHIR Review"
 author: "Lehne, Vorisek"
 date: "20 4 2022"
 output:
-  html_document: default
   word_document: default
+  html_document: default
   pdf_document: default
 editor_options:
   chunk_output_type: console
@@ -15,8 +15,6 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Network Analysis
-
 
 First, load relevant packages for the network analysis:
 ```{r message = FALSE}
@@ -24,6 +22,19 @@ library(tidyverse)
 library(igraph)
 library(ggraph)
 library(visNetwork)
+library(readxl)
+```
+
+
+# Network Analysis
+
+First, load relevant packages for the network analysis:
+```{r message = FALSE}
+library(tidyverse)
+library(igraph)
+library(ggraph)
+library(visNetwork)
+library(readxl)
 ```
 
 ## Read in the articles ("articles.xlsx" was exported from Rayyan):
@@ -139,24 +150,26 @@ network_authors <- graph_from_data_frame(edgelist_authors, directed = FALSE,
 
 ### Plot the network:
 ```{r}
-ggraph(network_authors, layout = "kk") +
+plot_network <- ggraph(network_authors, layout = "kk") +
         geom_edge_link(aes(width = collaborations), color = "grey80") +
         geom_node_point(aes(fill = as.factor(publications), size = publications),
                         shape = 21) +
         #geom_node_point(aes(size = publications)) +
-        geom_node_text(aes(label = name), repel = TRUE, size = 3,
+        geom_node_text(aes(label = name), repel = TRUE, size = 2.5,
                        family = "serif") +
-        scale_edge_width(range = c(0.5, 2))+
+        scale_edge_width(range = c(1, 4))+
         scale_fill_viridis_d(option = "C") +
         guides(fill = "none", size = "none", width = "none") +
         theme_void() +
         theme(legend.position = "none")
+
+plot_network
 ```
+
 
 Each point represents an author. Point size and color indicate the number of publications of this author (between 1 and 4). Lines indicate that authors have co-authored at least one paper together. Line thickness represents the number of co-authorships.
 
 ***
-
 
 # Analysis of Excel file
 
@@ -238,7 +251,7 @@ pub_included_year <- excel_data_clean %>%
 pub_year <- rbind(pub_all_year, pub_included_year)
 
 # plot
-ggplot(pub_year) + geom_line(aes(year, n, linetype = Articles),
+plot_pub <- ggplot(pub_year) + geom_line(aes(year, n, linetype = Articles),
                              color = "#1b3051") +
   labs(x = "", y = "Number of Publications", linetype = "") +
   scale_y_log10(minor_breaks = c(seq(1,9), seq(10,90,10))) +
@@ -248,6 +261,7 @@ ggplot(pub_year) + geom_line(aes(year, n, linetype = Articles),
         panel.grid.minor.y = element_line(color = "grey90"))
 
 ```
+
 
 ### Countries
 
@@ -272,23 +286,29 @@ bar_theme <-   theme(rect = element_blank(),
 bar_color <-  "#1b3051"
 bar_width <- 0.6
 
-ggplot(countries) +
+plot_country <- ggplot(countries) +
   geom_col(aes(reorder(Country, N, sum), N), fill = bar_color,
            width = bar_width) +
   labs(x = "", y = "Number of studies") +
-  scale_y_continuous(breaks = seq(0,10,2)) +
+  scale_y_continuous(breaks = seq(0,30,5)) +
   coord_flip() +
   scale_color_manual(values = "#668dcc") +
   bar_theme
 
-```
+plot_country
 
+```
 Map of countries:
+maps packacge required
+```{r}
+library("maps")
+library("mapproj")
+```
 
 ```{r}
 # geographical map
 world <- map_data('world')
-world_countries <- as.data.frame(unique(world$region))
+world_countries <- as.data.frame(unique(world$regi0on))
 names(world_countries) <- "Country"
 
 # join map with country data
@@ -297,13 +317,13 @@ countries_map <- countries %>%
         arrange(desc(N)) %>% 
         mutate(category = case_when(
           N == 1 ~ "1", 
-          N >= 2 & N <= 5 ~ "2 - 5", 
-          N >= 6 & N <= 10 ~ "6 - 10",
+          N >= 2 & N <= 10 ~ "2 - 10", 
+          N >= 11 & N <= 23 ~ "11 - 23",
           is.na(N) ~ "0")) %>% 
-        mutate(category=factor(category, levels = rev(c("0", "1", "2 - 5", "6 - 10"))))
+        mutate(category=factor(category, levels = rev(c("0", "1", "2 - 10", "11 - 23"))))
 
 # plot map
-ggplot() + geom_map(data = world, map = world,
+plot_map <- ggplot() + geom_map(data = world, map = world,
                  aes(x = long, y = lat, group = group, map_id=region),
                  fill = "grey95", colour="grey70", size=0.3) + 
         geom_map(data = countries_map, map=world,
@@ -316,8 +336,9 @@ ggplot() + geom_map(data = world, map = world,
         labs(fill="Number of\npublications", title="", x="", y="") +
         theme_minimal()
 
-```
+plot_map
 
+```
 
 ### Journals
 
@@ -354,13 +375,15 @@ knitr::kable(categories)
 ```
 
 ```{r}
-ggplot(categories) + geom_col(aes(reorder(Research_category, N, sum), N),
+plot_category <- ggplot(categories) + geom_col(aes(reorder(Research_category, N, sum), N),
                               fill = bar_color,
                               width = bar_width) +
   labs(x = "", y = "Number of studies") +
-  scale_y_continuous(breaks = seq(0,12,2)) +
+  scale_y_continuous(breaks = seq(0,20,5)) +
   coord_flip() +
   bar_theme
+
+plot_category
 ```
 
 Most articles reported generic solutions:
@@ -385,13 +408,15 @@ knitr::kable(medical_area)
 ```
 
 ```{r}
-ggplot(medical_area) + geom_col(aes(reorder(Medical_area, N, sum), N),
+plot_medical <- ggplot(medical_area) + geom_col(aes(reorder(Medical_area, N, sum), N),
                                 fill = bar_color,
                                 width = bar_width) +
   labs(x = "", y = "Number of studies") +
-  scale_y_continuous(breaks = seq(0,15,5)) +
+  scale_y_continuous(breaks = seq(0,30,5)) +
   coord_flip() +
   bar_theme
+
+plot_medical
 ```
 
 ### Research area
@@ -410,14 +435,16 @@ knitr::kable(research_area)
 ```
 
 ```{r}
-ggplot(research_area) +
+plot_area <- ggplot(research_area) +
   geom_col(aes(reorder(Research_area, N, sum), N),
            fill = bar_color,
            width = bar_width) +
   labs(x = "", y = "Number of studies") +
-  scale_y_continuous(breaks = seq(0,15,5)) +
+  scale_y_continuous(breaks = seq(0,30,5)) +
   coord_flip() +
   bar_theme
+
+plot_area
 ```
 
 ## Plot clinical trials as part of clinical research:
@@ -429,14 +456,16 @@ plot_data <- excel_data_clean %>%
                                 "Clinical Research", Research_area)) %>% 
   mutate(Research_area = ifelse(Research_area == "Public Health/ Epidemiological Studies", "Public Health/ \n Epidemiological\n Studies", Research_area))
 
-ggplot(plot_data) +
+plot_clinical <- ggplot(plot_data) +
   geom_bar(aes(Research_area,
                fill = Clinical_trials), width = bar_width) +
   labs(x = "", y = "Number of studies", fill = "") +
-  scale_y_continuous(breaks = seq(0,25,5)) +
+  scale_y_continuous(breaks = seq(0,35,5)) +
   scale_fill_manual(values=c("#668dcc", "#1b3051")) +
   coord_flip() +
   bar_theme
+
+plot_clinical
 ```
 
 ### Standards
@@ -457,16 +486,16 @@ knitr::kable(standards)
 ```
 
 ```{r}
-ggplot(standards) + geom_col(aes(reorder(Standard, N, sum), N),
+plot_standards <- ggplot(standards) + geom_col(aes(reorder(Standard, N, sum), N),
                              fill = bar_color,
                              width = bar_width) +
   labs(x = "", y = "Number of studies") +
-  scale_y_continuous(breaks = seq(0,14,2)) +
+  scale_y_continuous(breaks = seq(0,21,5)) +
   coord_flip() +
   bar_theme
-```
 
-The "Other" category is relatively large. Maybe investigate this category in more detail.
+plot_standards
+```
 
 ### Goals
 
@@ -493,12 +522,69 @@ goal_keywords <- excel_data_clean %>%
 ```
 
 The wordcloud shows the most common words mentioned as keywords:
-
 ```{r}
 library(wordcloud)
-
-wordcloud(words = goal_keywords$word, freq = goal_keywords$freq, min.freq = 1, max.words=150, random.order=FALSE, rot.per=0.10, 
-          colors=c("#335a99", "#1b3051"))
 ```
 
-Note that there are still some typos shown in the wordcloud. (Correct all typos in the final Excel file before analysis.)
+```{r}
+wordcloud(words = goal_keywords$word, freq = goal_keywords$freq, min.freq = 1,                      max.words=150, random.order=FALSE, rot.per=0.10, 
+             colors=c("#335a99", "#1b3051"))
+
+```
+
+
+# Create Images for Publication out of multiple graphs
+Package gridExtra
+```{r}
+library(gridExtra)
+```
+
+```{r}
+require(gridExtra)
+plot1 <- ggplot(categories) + geom_col(aes(reorder(Research_category, N, sum), N),
+                              fill = bar_color,
+                              width = bar_width) +
+  labs(x = "", y = "Number of studies") +
+  scale_y_continuous(breaks = seq(0,20,5)) +
+  coord_flip() +
+  bar_theme
+plot2 <- ggplot(standards) + geom_col(aes(reorder(Standard, N, sum), N),
+                             fill = bar_color,
+                             width = bar_width) +
+  labs(x = "", y = "Number of studies") +
+  scale_y_continuous(breaks = seq(0,21,5)) +
+  coord_flip() +
+  bar_theme
+```
+
+
+```{r}
+test <- grid.arrange(plot1, plot2, ncol=2)
+
+test
+
+ggsave("test.png", arrangeGrob(plot1, plot2))
+
+```
+
+package cowplot
+```{r}
+library(cowplot)
+
+```
+```{r}
+p2 <- plot_grid(plot_medical, plot_category, plot_area, plot_standards, labels = "AUTO")
+p2
+```
+
+## Save Images for Publication
+```{r}
+ggsave("Figure5test.png", p2)
+ggsave("Figure2.png", plot_pub)
+ggsave("Figure3.png", plot_network)
+ggsave("Figure4A.png", plot_country)
+ggsave("Figure5A.png", plot_medical)
+ggsave("Figure5B.png", plot_category)
+ggsave("Figure5C.png", plot_clinical)
+ggsave("Figure5D.png", plot_standards)
+```
