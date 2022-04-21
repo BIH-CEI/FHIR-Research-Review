@@ -16,15 +16,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-First, load relevant packages for the network analysis:
-```{r message = FALSE}
-library(tidyverse)
-library(igraph)
-library(ggraph)
-library(visNetwork)
-library(readxl)
-```
-
 
 # Network Analysis
 
@@ -157,7 +148,7 @@ plot_network <- ggraph(network_authors, layout = "kk") +
         #geom_node_point(aes(size = publications)) +
         geom_node_text(aes(label = name), repel = TRUE, size = 2.5,
                        family = "serif") +
-        scale_edge_width(range = c(1, 4))+
+        scale_edge_width(range = c(0.5, 2))+
         scale_fill_viridis_d(option = "C") +
         guides(fill = "none", size = "none", width = "none") +
         theme_void() +
@@ -167,7 +158,23 @@ plot_network
 ```
 
 
-Each point represents an author. Point size and color indicate the number of publications of this author (between 1 and 4). Lines indicate that authors have co-authored at least one paper together. Line thickness represents the number of co-authorships.
+Each point represents an author. Point size and color indicate the number of publications of this author (between 1 and 6). Lines indicate that authors have co-authored at least one paper together. Line thickness represents the number of co-authorships.
+
+## author information
+```{r}
+nrow(authors)
+summary(authors$publications)
+```
+```{r}
+author_info <- authors %>% 
+  group_by(publications) %>% 
+  summarize(N = n()) %>% 
+  mutate(Percent = N / sum(N) * 100,
+         Percent = round(Percent, 1)) %>% 
+  arrange(desc(N))
+
+knitr::kable(author_info)
+```
 
 ***
 
@@ -249,18 +256,27 @@ pub_included_year <- excel_data_clean %>%
 
 # combine in one data frame
 pub_year <- rbind(pub_all_year, pub_included_year)
+pub_year$year <- as.integer(pub_year$year)
 
 # plot
 plot_pub <- ggplot(pub_year) + geom_line(aes(year, n, linetype = Articles),
                              color = "#1b3051") +
   labs(x = "", y = "Number of Publications", linetype = "") +
-  scale_y_log10(minor_breaks = c(seq(1,9), seq(10,90,10))) +
+  scale_y_log10(minor_breaks = c(seq(1,9), seq(10,150,10))) +
   theme(rect = element_blank(),
         axis.line = element_line(color = "grey40"),
         panel.grid.major = element_line(color = "grey90"),
         panel.grid.minor.y = element_line(color = "grey90"))
 
+plot_pub + scale_x_continuous(limits = c(2013, 2021), breaks = c(2013, 2015, 2017, 2019, 2021))
+
 ```
+
+Summary publications per year
+```{r}
+summary(excel_data_clean$Year)
+```
+
 
 
 ### Countries
