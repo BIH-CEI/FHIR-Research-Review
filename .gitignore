@@ -8,3 +8,8 @@
 .Figures.Rmd
 .Figures.html
 .Figures_files
+.testing.Rmd
+.Rscript_results.html
+.Rcript_results_original.Rmd
+.articles.csv
+.Rscript_results_revision_files
